@@ -1,20 +1,19 @@
 package world.bentobox.upgrades.api;
 
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import org.bukkit.Material;
 
 import net.milkbowl.vault.economy.EconomyResponse;
+import org.bukkit.World;
+import org.bukkit.entity.EntityType;
 import world.bentobox.bentobox.api.addons.Addon;
 import world.bentobox.bentobox.api.addons.Addon.State;
 import world.bentobox.bentobox.api.user.User;
 import world.bentobox.bentobox.database.objects.Island;
 import world.bentobox.upgrades.UpgradesAddon;
+import world.bentobox.upgrades.config.Settings;
 import world.bentobox.upgrades.dataobjects.UpgradesData;
 
 /**
@@ -104,6 +103,17 @@ public abstract class Upgrade {
     }
 
     /**
+     *
+     * @param user
+     * @param island
+     * @param newLevel
+     * @return if upgrade can proceed
+     */
+    public boolean beforeUpgrade(User user, Island island, int newLevel) {
+        return true;
+    }
+
+    /**
      * This function is called when the user is upgrading for the island
      * It is called after the canUpgrade function
      *
@@ -129,6 +139,16 @@ public abstract class Upgrade {
         data.setUpgradeLevel(this.name, data.getUpgradeLevel(this.name) + 1);
 
         return true;
+    }
+
+    /**
+     * Things to run after the upgrade is done
+     * @param user
+     * @param island
+     * @param oldLevel
+     */
+    public void afterUpgrade(User user, Island island, int oldLevel) {
+        return;
     }
 
     /**
@@ -226,6 +246,46 @@ public abstract class Upgrade {
         }
         Upgrade other = (Upgrade) obj;
         return Objects.equals(name, other.name);
+    }
+
+    public Settings.UpgradeTier getLastTier(World world) {
+        String upgradeName = this.name.toLowerCase();
+        if (upgradeName.equals("rangeupgrade")) {
+            List<Settings.UpgradeTier> tier = this.upgradesAddon.getUpgradesManager().getAllRangeUpgradeTiers(world);
+            return tier.get(tier.size() - 1);
+        } else {
+            String[] splitted = upgradeName.split("-");
+            if (splitted.length < 2) {
+                return null;
+            }
+
+            String upgradeType = String.join("-", Arrays.copyOfRange(splitted, 1, splitted.length));
+
+            switch (splitted[0]) {
+                case "command":
+                    Map<String, List<Settings.CommandUpgradeTier>> commandMap = this.upgradesAddon.getUpgradesManager().getAllCommandUpgradeTiers(world);
+                    System.out.println("command: " + upgradeType + " : " + commandMap.get(upgradeType));
+
+                    return commandMap.get(upgradeType).get(commandMap.get(upgradeType).size() - 1);
+                case "limitsupgrade":
+                    Material material = Material.matchMaterial(upgradeType);
+                    EntityType entityType = EntityType.fromName(upgradeType);
+                    if (material != null && material.isBlock()) {
+                        System.out.println("Material: " + upgradeType + " (" + material + ")");
+
+                        Map<Material, List<Settings.UpgradeTier>> materialMap = this.upgradesAddon.getUpgradesManager().getAllBlockLimitsUpgradeTiers(world);
+                        return materialMap.get(material).get(materialMap.get(material).size() - 1);
+                    } else if (entityType != null) {
+                        Map<EntityType, List<Settings.UpgradeTier>> entityMap = this.upgradesAddon.getUpgradesManager().getAllEntityLimitsUpgradeTiers(world);
+                        return entityMap.get(entityType).get(entityMap.get(entityType).size() - 1);
+                    } else {
+                        Map<String, List<Settings.UpgradeTier>> groupMap = this.upgradesAddon.getUpgradesManager().getAllEntityGroupLimitsUpgradeTiers(world);
+                        return groupMap.get(upgradeType).get(groupMap.get(upgradeType).size() - 1);
+                    }
+                default:
+                    return null;
+            }
+        }
     }
 
     private final String name;

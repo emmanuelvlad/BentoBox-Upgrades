@@ -101,22 +101,32 @@ public class CommandUpgrade extends Upgrade {
 	public boolean doUpgrade(User user, Island island) {
 		UpgradesAddon upgradeAddon = this.getUpgradesAddon();
 		UpgradesData islandData = upgradeAddon.getUpgradesLevels(island.getUniqueId());
-		int upgradeLevel = islandData.getUpgradeLevel(this.getName());
-		
+
 		if (!super.doUpgrade(user, island))
 			return false;
-		
-		List<String> commands = upgradeAddon.getUpgradesManager().getCommandList(this.cmdId, upgradeLevel, island, user.getName());
-		Boolean isConsole = upgradeAddon.getUpgradesManager().isCommantConsole(this.cmdId, upgradeLevel, island.getWorld());
-		
-		commands.forEach(cmd -> {
-			if (isConsole) {
-				upgradeAddon.getServer().dispatchCommand(upgradeAddon.getServer().getConsoleSender(), cmd);
-			} else {
-				upgradeAddon.getServer().dispatchCommand(user.getSender(), cmd);
-			}
-		});
+
+		afterUpgrade(user, island, islandData.getUpgradeLevel(this.getName()));
+
 		return true;
+	}
+
+	@Override
+	public void afterUpgrade(User user, Island island, int oldLevel) {
+		UpgradesAddon upgradeAddon = this.getUpgradesAddon();
+		int newLevel = upgradeAddon.getUpgradesLevels(island.getUniqueId()).getUpgradeLevel(getName());
+		int diff = newLevel - oldLevel;
+		for (int i = 0; i < diff; i++) {
+			List<String> commands = upgradeAddon.getUpgradesManager().getCommandList(this.cmdId, oldLevel + i, island, user.getName());
+			Boolean isConsole = upgradeAddon.getUpgradesManager().isCommantConsole(this.cmdId, oldLevel + i, island.getWorld());
+
+			commands.forEach(cmd -> {
+				if (isConsole) {
+					upgradeAddon.getServer().dispatchCommand(upgradeAddon.getServer().getConsoleSender(), cmd);
+				} else {
+					upgradeAddon.getServer().dispatchCommand(user.getSender(), cmd);
+				}
+			});
+		}
 	}
 	
 	private String cmdId;

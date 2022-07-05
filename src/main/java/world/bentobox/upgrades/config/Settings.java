@@ -28,6 +28,7 @@ public class Settings {
         this.hasRangeUpgrade = false;
 
         this.disabledGameModes = new HashSet<>(this.addon.getConfig().getStringList("disabled-gamemodes"));
+        this.enableCommand = this.addon.getConfig().getBoolean("enable-command");
 
         if (this.addon.getConfig().isSet("range-upgrade")) {
             ConfigurationSection section = this.addon.getConfig().getConfigurationSection("range-upgrade");
@@ -357,6 +358,10 @@ public class Settings {
         return disabledGameModes;
     }
 
+    public boolean getEnableCommand() {
+        return this.enableCommand;
+    }
+
     public boolean getHasRangeUpgrade() {
         return this.hasRangeUpgrade;
     }
@@ -505,6 +510,8 @@ public class Settings {
     private UpgradesAddon addon;
 
     private Set<String> disabledGameModes;
+
+    private boolean enableCommand;
 
     private int maxRangeUpgrade = 0;
 

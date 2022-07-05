@@ -9,4 +9,9 @@ icon: GOLD_INGOT
 authors:
   - Guillaume-Lebegue
 
+permissions:
+  '[gamemode].admin.upgrade':
+    description: Player can use admin command
+    default: op
+
 softdepend: BSkyBlock, AcidIsland, CaveBlock, SkyGrid, AOneBlock, Level, Limits

@@ -128,24 +128,48 @@ public class EntityLimitsUpgrade extends Upgrade {
 
     @Override
     public boolean doUpgrade(User user, Island island) {
-        UpgradesAddon islandAddon = this.getUpgradesAddon();
-
-        if (!islandAddon.isLimitsProvided())
+        if (!beforeUpgrade(user, island, 0))
             return false;
 
-        BlockLimitsListener bLListener = islandAddon.getLimitsAddon().getBlockLimitListener();
-        IslandBlockCount isb = bLListener.getIsland(island);
         if (!super.doUpgrade(user, island))
             return false;
+
+        UpgradesAddon islandAddon = this.getUpgradesAddon();
+        BlockLimitsListener bLListener = islandAddon.getLimitsAddon().getBlockLimitListener();
+        IslandBlockCount isb = bLListener.getIsland(island);
         int oldCount = isb.getEntityLimitsOffset().getOrDefault(entity, 0);
         int newCount = oldCount + this.getUpgradeValues(user).getUpgradeValue();
 
-        isb.setEntityLimitsOffset(this.entity, newCount);
-
-        user.sendMessage("upgrades.ui.upgradepanel.limitsupgradedone", "[block]", this.entity.toString(), "[level]",
-                Integer.toString(this.getUpgradeValues(user).getUpgradeValue()));
+        afterUpgrade(user, island, newCount);
 
         return true;
+    }
+
+    @Override
+    public boolean beforeUpgrade(User user, Island island, int newLevel) {
+        UpgradesAddon islandAddon = this.getUpgradesAddon();
+
+        return islandAddon.isLimitsProvided();
+    }
+
+    @Override
+    public void afterUpgrade(User user, Island island, int oldLevel) {
+        UpgradesAddon upgradeAddon = this.getUpgradesAddon();
+        BlockLimitsListener bLListener = upgradeAddon.getLimitsAddon().getBlockLimitListener();
+        IslandBlockCount isb = bLListener.getIsland(island);
+        int newLevel = upgradeAddon.getUpgradesLevels(island.getUniqueId()).getUpgradeLevel(getName());
+
+        Map<String, Integer> upgradeInfos = this.getUpgradesAddon().getUpgradesManager().getUpgradeInfos(
+            getName(),
+            newLevel,
+            (int)this.getUpgradesAddon().getLevelAddon().getIslandLevel(island.getWorld(), user.getUniqueId()),
+            island.getMembers().size(),
+            island.getWorld());
+
+        isb.setEntityLimitsOffset(this.entity, upgradeInfos.get("total"));
+
+        user.sendMessage("upgrades.ui.upgradepanel.limitsupgradedone", "[block]", this.entity.toString(), "[level]",
+                Integer.toString(upgradeInfos.get("upgrade")));
     }
 
     private EntityType entity;

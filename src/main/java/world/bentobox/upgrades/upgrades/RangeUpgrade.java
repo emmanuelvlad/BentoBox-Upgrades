@@ -141,9 +141,27 @@ public class RangeUpgrade extends Upgrade {
      */
     @Override
     public boolean doUpgrade(User user, Island island) {
-        // Get the new range
-        long newRange = (long)island.getProtectionRange() + this.getUpgradeValues(user).getUpgradeValue();
+        UpgradesAddon islandAddon = this.getUpgradesAddon();
+        int currentLevel = islandAddon.getUpgradesLevels(island.getUniqueId()).getUpgradeLevel(getName());
 
+        if (!beforeUpgrade(user, island, currentLevel+1)) {
+            return false;
+        }
+
+        // if super doUpgrade not worked
+        if (!super.doUpgrade(user, island))
+            return false;
+
+        afterUpgrade(user, island, currentLevel);
+
+        return true;
+    }
+
+    @Override
+    public boolean beforeUpgrade(User user, Island island, int newLevel) {
+        UpgradesAddon islandAddon = this.getUpgradesAddon();
+        int currentLevel = islandAddon.getUpgradesLevels(island.getUniqueId()).getUpgradeLevel(getName());
+        int newRange = island.getProtectionRange() - currentLevel + newLevel;
         // If newRange is more than the authorized range (Config problem)
         if (newRange > island.getRange()) {
             this.getUpgradesAddon().logWarning(
@@ -152,24 +170,40 @@ public class RangeUpgrade extends Upgrade {
             return false;
         }
 
-        // if super doUpgrade not worked
-        if (!super.doUpgrade(user, island))
-            return false;
+        return true;
+    }
 
+    @Override
+    public void afterUpgrade(User user, Island island, int oldLevel) {
+        UpgradesAddon upgradeAddon = this.getUpgradesAddon();
+        int newLevel = upgradeAddon.getUpgradesLevels(island.getUniqueId()).getUpgradeLevel(getName());
         // Save oldRange for rangeChange event
-        int oldRange = island.getProtectionRange();
 
+        Map<String, Integer> oldInfos = this.getUpgradesAddon().getUpgradesManager().getUpgradeInfos(
+                getName(),
+                oldLevel,
+                (int)this.getUpgradesAddon().getLevelAddon().getIslandLevel(island.getWorld(), user.getUniqueId()),
+                island.getMembers().size(),
+                island.getWorld());
+
+        Map<String, Integer> newInfos = this.getUpgradesAddon().getUpgradesManager().getUpgradeInfos(
+                getName(),
+                newLevel,
+                (int)this.getUpgradesAddon().getLevelAddon().getIslandLevel(island.getWorld(), user.getUniqueId()),
+                island.getMembers().size(),
+                island.getWorld());
+
+        int oldRange = island.getProtectionRange();
+        int newRange = oldRange - oldInfos.get("total") + newInfos.get("total");
         // Set range
-        island.setProtectionRange((int) newRange);
+        island.setProtectionRange(newRange);
 
         // Launch range change event
         IslandEvent.builder().island(island).location(island.getCenter()).reason(IslandEvent.Reason.RANGE_CHANGE)
-        .involvedPlayer(user.getUniqueId()).admin(false).protectionRange((int) newRange, oldRange).build();
+                .involvedPlayer(user.getUniqueId()).admin(false).protectionRange(newRange, oldRange).build();
 
         user.sendMessage("upgrades.ui.upgradepanel.rangeupgradedone", "[rangelevel]",
-                Integer.toString(this.getUpgradeValues(user).getUpgradeValue()));
-
-        return true;
+                Integer.toString(newInfos.get("total") - oldInfos.get("total")));
     }
 
 }

@@ -1,15 +1,6 @@
 package world.bentobox.upgrades;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.bukkit.Material;
@@ -337,11 +328,17 @@ public class UpgradesManager {
 			return null;
 		
 		Map<String, Integer> info = new HashMap<>();
+		int total = 0;
+
+		for (int i = 1; i <= rangeLevel; i++) {
+			total += (int) rangeUpgradeTier.calculateUpgrade(i, islandLevel, numberPeople);
+		}
 		
 		info.put("islandMinLevel", (int) rangeUpgradeTier.calculateIslandMinLevel(rangeLevel, islandLevel, numberPeople));
 		info.put("vaultCost", (int) rangeUpgradeTier.calculateVaultCost(rangeLevel, islandLevel, numberPeople));
 		info.put("upgrade", (int) rangeUpgradeTier.calculateUpgrade(rangeLevel, islandLevel, numberPeople));
-		
+		info.put("total", total);
+
 		return info;
 	}
 	
@@ -373,10 +370,16 @@ public class UpgradesManager {
 		}
 		
 		Map<String, Integer> info = new HashMap<>();
+		int total = 0;
+
+		for (int i = 1; i <= limitsLevel; i++) {
+			total += (int) limitsUpgradeTier.calculateUpgrade(i, islandLevel, numberPeople);
+		}
 		
 		info.put("islandMinLevel", (int) limitsUpgradeTier.calculateIslandMinLevel(limitsLevel, islandLevel, numberPeople));
 		info.put("vaultCost", (int) limitsUpgradeTier.calculateVaultCost(limitsLevel, islandLevel, numberPeople));
 		info.put("upgrade", (int) limitsUpgradeTier.calculateUpgrade(limitsLevel, islandLevel, numberPeople));
+		info.put("total", total);
 		
 		return info;
 	}
@@ -403,17 +406,24 @@ public class UpgradesManager {
 	}
 	
 	public Map<String, Integer> getEntityLimitsUpgradeInfos(EntityType ent, int limitsLevel, int islandLevel, int numberPeople, World world) {
-		Settings.UpgradeTier limitsUpgradeTier = this.getEntityLimitsUpgradeTier(ent, limitsLevel, world);
-		if (limitsUpgradeTier == null) {
+		Settings.UpgradeTier currentTier = this.getEntityLimitsUpgradeTier(ent, limitsLevel, world);
+		if (currentTier == null) {
 			return null;
 		}
 		
 		Map<String, Integer> info = new HashMap<>();
-		
-		info.put("islandMinLevel", (int) limitsUpgradeTier.calculateIslandMinLevel(limitsLevel, islandLevel, numberPeople));
-		info.put("vaultCost", (int) limitsUpgradeTier.calculateVaultCost(limitsLevel, islandLevel, numberPeople));
-		info.put("upgrade", (int) limitsUpgradeTier.calculateUpgrade(limitsLevel, islandLevel, numberPeople));
-		
+		int total = 0;
+
+		for (int i = 1; i <= limitsLevel; i++) {
+			Settings.UpgradeTier iterationTier = this.getEntityLimitsUpgradeTier(ent, i, world);
+			total += (int) iterationTier.calculateUpgrade(i, islandLevel, numberPeople);
+		}
+
+		info.put("islandMinLevel", (int) currentTier.calculateIslandMinLevel(limitsLevel, islandLevel, numberPeople));
+		info.put("vaultCost", (int) currentTier.calculateVaultCost(limitsLevel, islandLevel, numberPeople));
+		info.put("upgrade", (int) currentTier.calculateUpgrade(limitsLevel, islandLevel, numberPeople));
+		info.put("total", total);
+
 		return info;
 	}
     
@@ -424,11 +434,17 @@ public class UpgradesManager {
 		}
 		
 		Map<String, Integer> info = new HashMap<>();
-		
+		int total = 0;
+
+		for (int i = 1; i <= limitsLevel; i++) {
+			total += (int) limitsUpgradeTier.calculateUpgrade(i, islandLevel, numberPeople);
+		}
+
 		info.put("islandMinLevel", (int) limitsUpgradeTier.calculateIslandMinLevel(limitsLevel, islandLevel, numberPeople));
 		info.put("vaultCost", (int) limitsUpgradeTier.calculateVaultCost(limitsLevel, islandLevel, numberPeople));
 		info.put("upgrade", (int) limitsUpgradeTier.calculateUpgrade(limitsLevel, islandLevel, numberPeople));
-		
+		info.put("total", total);
+
 		return info;
 	}
 	
@@ -481,11 +497,17 @@ public class UpgradesManager {
 		}
 		
 		Map<String, Integer> info = new HashMap<>();
-		
+		int total = 0;
+
+		for (int i = 1; i <= cmdLevel; i++) {
+			total += (int) cmdUpgradeTier.calculateUpgrade(i, islandLevel, numberPeople);
+		}
+
 		info.put("islandMinLevel", (int) cmdUpgradeTier.calculateIslandMinLevel(cmdLevel, islandLevel, numberPeople));
 		info.put("vaultCost", (int) cmdUpgradeTier.calculateVaultCost(cmdLevel, islandLevel, numberPeople));
 		info.put("upgrade", (int) cmdUpgradeTier.calculateUpgrade(cmdLevel, islandLevel, numberPeople));
-		
+		info.put("total", total);
+
 		return info;
 	}
 	
@@ -548,6 +570,37 @@ public class UpgradesManager {
 		return entityGroupLimits;
 	}
 	
+	public Map<String, Integer> getUpgradeInfos(String upgradeName, int upgradeLevel, int islandLevel, int numberPeople, World world) {
+		upgradeName = upgradeName.toLowerCase();
+		if (upgradeName.equals("rangeupgrade")) {
+			return this.getRangeUpgradeInfos(upgradeLevel, islandLevel, numberPeople, world);
+		} else {
+			String[] splitted = upgradeName.split("-");
+			if (splitted.length < 2) {
+				return null;
+			}
+
+			String upgradeType = String.join("-", Arrays.copyOfRange(splitted, 1, splitted.length));
+
+			switch (splitted[0]) {
+				case "command":
+					return this.getCommandUpgradeInfos(upgradeType, upgradeLevel, islandLevel, numberPeople, world);
+				case "limitsupgrade":
+					Material material = Material.matchMaterial(upgradeType);
+					EntityType entityType = EntityType.fromName(upgradeType);
+					if (material != null && material.isBlock()) {
+						return this.getBlockLimitsUpgradeInfos(material, upgradeLevel, islandLevel, numberPeople, world);
+					} else if (entityType != null) {
+						return this.getEntityLimitsUpgradeInfos(entityType, upgradeLevel, islandLevel, numberPeople, world);
+					} else {
+						return this.getEntityGroupLimitsUpgradeInfos(upgradeType, upgradeLevel, islandLevel, numberPeople, world);
+					}
+				default: 
+					return null;
+			}
+		}
+	}
+
 	private UpgradesAddon addon;
 	
 	private Set<String> hookedGameModes;
